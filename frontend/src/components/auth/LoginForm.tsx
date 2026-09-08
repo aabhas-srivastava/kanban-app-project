@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, TextField, Button, Typography, Link as MuiLink, Alert } from '@mui/material';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { setAuth } from '@/lib/auth';
 import { AuthResponse } from '@/types';
 
 export default function LoginForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,10 +23,12 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
+      queryClient.clear(); // clear any previous user's cached data before setting new auth
       setAuth(data.accessToken, data.refreshToken, data.user);
       router.push('/boards');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       setError(err.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);

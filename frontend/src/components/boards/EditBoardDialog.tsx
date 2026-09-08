@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,63 +12,60 @@ import {
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { Board } from '@/types';
 
 interface Props {
+  board: Board;
   open: boolean;
   onClose: () => void;
 }
 
-export default function CreateBoardDialog({ open, onClose }: Props) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+export default function EditBoardDialog({ board, open, onClose }: Props) {
+  const [title, setTitle] = useState(board.title);
+  const [description, setDescription] = useState(board.description || '');
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
 
+  // Sync with latest board data when dialog opens
+  useEffect(() => {
+    if (open) {
+      setTitle(board.title);
+      setDescription(board.description || '');
+      setError('');
+    }
+  }, [open, board]);
+
   const mutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post('/boards', {
+      const { data } = await api.patch(`/boards/${board.id}`, {
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: description.trim() || null,
       });
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board', board.id] });
       queryClient.invalidateQueries({ queryKey: ['boards'] });
-      setTitle('');
-      setDescription('');
-      setError('');
       onClose();
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (err: any) => {
-      console.error('Create board error:', err);
       setError(
-        err.response?.data?.message ||
-          err.message ||
-          'Failed to create board. Please try again.',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        err.response?.data?.message || err.message || 'Failed to update board.',
       );
     },
   });
 
-  const handleCreate = () => {
-    if (!title.trim()) {
-      setError('Board title is required');
-      return;
-    }
-    setError('');
-    mutation.mutate();
-  };
-
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Create New Board</DialogTitle>
+      <DialogTitle>Edit Board</DialogTitle>
       <DialogContent>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-
         <TextField
           autoFocus
           fullWidth
@@ -94,10 +91,10 @@ export default function CreateBoardDialog({ open, onClose }: Props) {
         </Button>
         <Button
           variant="contained"
-          onClick={handleCreate}
+          onClick={() => mutation.mutate()}
           disabled={mutation.isPending || !title.trim()}
         >
-          {mutation.isPending ? 'Creating...' : 'Create'}
+          {mutation.isPending ? 'Saving...' : 'Save'}
         </Button>
       </DialogActions>
     </Dialog>

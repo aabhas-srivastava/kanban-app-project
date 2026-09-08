@@ -4,6 +4,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role?: 'OWNER' | 'MEMBER' | 'VIEWER';
   createdAt?: string;
 }
 
@@ -63,7 +64,7 @@ export interface Activity {
   cardId?: string | null;
   userId: string;
   action: string;
-  meta?: any;
+  meta?: unknown;
   createdAt: string;
   user?: User;
   card?: { id: string; title: string };

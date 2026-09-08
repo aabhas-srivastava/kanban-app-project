@@ -5,6 +5,7 @@ import {
   Patch,
   Param,
   Delete,
+  Get,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -52,5 +53,36 @@ export class CardsController {
   remove(@Request() req: any, @Param('id') id: string) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     return this.cardsService.remove(id, req.user.id);
+  }
+
+  // ── Assignees ──────────────────────────────────────────────────────────────
+
+  @Get(':id/assignees')
+  @ApiOperation({ summary: 'Get assignees of a card' })
+  getAssignees(@Request() req: any, @Param('id') id: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    return this.cardsService.getAssignees(id, req.user.id);
+  }
+
+  @Post(':id/assignees')
+  @ApiOperation({ summary: 'Assign a member to a card' })
+  addAssignee(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('userId') assignUserId: string,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    return this.cardsService.addAssignee(id, req.user.id, assignUserId);
+  }
+
+  @Delete(':id/assignees/:userId')
+  @ApiOperation({ summary: 'Remove an assignee from a card' })
+  removeAssignee(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Param('userId') assignUserId: string,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    return this.cardsService.removeAssignee(id, req.user.id, assignUserId);
   }
 }

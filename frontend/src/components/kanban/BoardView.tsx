@@ -109,8 +109,8 @@ export default function BoardView({ board }: Props) {
               <ColumnComponent
                 key={column.id}
                 column={column}
+                board={board}
                 onCardClick={(card) => setSelectedCard(card)}
-                canEdit={canEdit}
               />
             ))}
           {canEdit && <AddColumn boardId={board.id} />}

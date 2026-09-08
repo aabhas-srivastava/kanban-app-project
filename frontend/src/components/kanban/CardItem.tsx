@@ -20,18 +20,6 @@ export default function CardItem({ card, onClick }: Props) {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Simple color mapping for labels
-  const getLabelColor = (label: string) => {
-    const colors: Record<string, string> = {
-      UI: '#61BD4F',
-      Frontend: '#F2D600',
-      Backend: '#FF9F1A',
-      Bug: '#EB5A46',
-      Feature: '#C377E0',
-    };
-    return colors[label] || '#0079BF';
-  };
-
   return (
     <Card
       ref={setNodeRef}
@@ -40,28 +28,31 @@ export default function CardItem({ card, onClick }: Props) {
       {...listeners}
       onClick={onClick}
       sx={{
-        mb: 1,
+        mb: 1.2,
         cursor: 'grab',
         borderRadius: 1.5,
-        boxShadow: '0 1px 0 rgba(9,30,66,.25)',
-        '&:hover': { bgcolor: '#f4f5f7' },
+        border: '1px solid #eaeaea',
+        boxShadow: 'none',
+        '&:hover': {
+          borderColor: '#ccc',
+          bgcolor: '#fafafa',
+        },
         '&:active': { cursor: 'grabbing' },
       }}
     >
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        {/* Labels */}
         {card.labels?.length > 0 && (
-          <Box sx={{ mb: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+          <Box sx={{ mb: 1, display: 'flex', gap: 0.6, flexWrap: 'wrap' }}>
             {card.labels.map((label) => (
               <Chip
                 key={label}
                 label={label}
                 size="small"
                 sx={{
-                  height: 18,
+                  height: 20,
                   fontSize: '0.7rem',
-                  fontWeight: 600,
-                  bgcolor: getLabelColor(label),
+                  fontWeight: 500,
+                  bgcolor: '#111',
                   color: '#fff',
                   borderRadius: 1,
                 }}
@@ -70,11 +61,7 @@ export default function CardItem({ card, onClick }: Props) {
           </Box>
         )}
 
-        <Typography
-          variant="body2"
-          color="#172B4D"
-          sx={{ fontWeight: 500 }}
-        >
+        <Typography variant="body2" sx={{ fontWeight: 500, color: '#111' }}>
           {card.title}
         </Typography>
 
@@ -84,14 +71,10 @@ export default function CardItem({ card, onClick }: Props) {
             sx={{
               display: 'inline-block',
               mt: 1,
-              px: 0.8,
-              py: 0.2,
-              bgcolor: '#f4f5f7',
-              borderRadius: 1,
-              color: '#5e6c84',
+              color: '#888',
             }}
           >
-            Due: {new Date(card.dueDate).toLocaleDateString('en-US', {
+            Due {new Date(card.dueDate).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
             })}

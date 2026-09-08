@@ -67,7 +67,7 @@ export default function MembersPanel({ board, open, onClose }: Props) {
       <DialogTitle>Board Members</DialogTitle>
       <DialogContent>
         {isOwner && (
-          <Box mb={3} display="flex" gap={1} alignItems="flex-start">
+          <Box sx={{ mb: 3, display: 'flex', gap: 1, alignItems: 'flex-start' }}>
             <TextField
               fullWidth
               size="small"
@@ -98,7 +98,7 @@ export default function MembersPanel({ board, open, onClose }: Props) {
         )}
 
         {isLoading ? (
-          <Box display="flex" justifyContent="center" py={4}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </Box>
         ) : (
@@ -108,7 +108,7 @@ export default function MembersPanel({ board, open, onClose }: Props) {
                 key={member.id}
                 secondaryAction={
                   isOwner && member.role !== 'OWNER' ? (
-                    <Box display="flex" gap={1} alignItems="center">
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                       <FormControl size="small" sx={{ minWidth: 110 }}>
                         <Select
                           value={member.role}

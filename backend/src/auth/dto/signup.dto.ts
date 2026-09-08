@@ -5,14 +5,14 @@ export class SignupDto {
   @ApiProperty({ example: 'John Doe' })
   @IsString()
   @IsNotEmpty()
-  name: string | undefined;
+  name: string;
 
   @ApiProperty({ example: 'john@example.com' })
   @IsEmail()
-  email: string | undefined;
+  email: string;
 
   @ApiProperty({ example: 'password123', minLength: 6 })
   @IsString()
   @MinLength(6)
-  password: string | undefined;
+  password: string;
 }

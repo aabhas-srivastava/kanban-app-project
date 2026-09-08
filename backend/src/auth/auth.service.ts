@@ -20,7 +20,6 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupDto): Promise<AuthResponseDto> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -29,13 +28,12 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const passwordHash = await bcrypt.hash(dto.password as string, 12);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const user = await this.prisma.user.create({
       data: {
-        name: dto.name,
-        email: dto.email,
+        name: dto.name as string,
+        email: dto.email as string,
         passwordHash,
       },
       select: { id: true, name: true, email: true },
@@ -45,7 +43,6 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -55,21 +52,17 @@ export class AuthService {
     }
 
     const isPasswordValid = await bcrypt.compare(
-      dto.password,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+      dto.password as string,
       user.passwordHash,
     );
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     return this.generateTokens({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       id: user.id,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       name: user.name,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       email: user.email,
     });
   }
@@ -81,7 +74,6 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const user = await this.prisma.user.findUnique({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         where: { id: payload.sub },
@@ -93,7 +85,6 @@ export class AuthService {
       }
 
       const accessToken = await this.jwtService.signAsync(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         { sub: user.id, email: user.email },
         {
           secret: this.configService.get<string>('JWT_SECRET'),
@@ -108,7 +99,6 @@ export class AuthService {
   }
 
   async getMe(userId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true, email: true, createdAt: true },
@@ -118,7 +108,6 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return user;
   }
 

@@ -9,6 +9,9 @@ export class UserResponseDto {
 
   @ApiProperty()
   email: string | undefined;
+
+  @ApiProperty({ required: false })
+  role?: string;
 }
 
 export class AuthResponseDto {

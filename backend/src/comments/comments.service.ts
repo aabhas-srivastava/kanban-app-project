@@ -27,7 +27,12 @@ export class CommentsService {
     });
     if (!card) throw new NotFoundException('Card not found');
 
-    await this.checkAccess(card.column.boardId, userId);
+    const membership = await this.checkAccess(card.column.boardId, userId);
+
+    // VIEWERs cannot post comments
+    if (membership.role === Role.VIEWER) {
+      throw new ForbiddenException('Viewers cannot add comments');
+    }
 
     if (!dto.text) {
       throw new BadRequestException('Comment text is required');

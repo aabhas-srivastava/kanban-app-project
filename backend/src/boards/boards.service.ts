@@ -14,9 +14,18 @@ import { Role } from '@prisma/client';
 export class BoardsService {
   constructor(private prisma: PrismaService) {}
 
-  // ==================== BOARD CRUD ====================
-
   async create(userId: string, dto: CreateBoardDto) {
+    console.log('Creating board for userId:', userId);
+
+    // Verify user still exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return this.prisma.board.create({
       data: {
         title: dto.title ?? 'Untitled Board',
@@ -24,7 +33,7 @@ export class BoardsService {
         ownerId: userId,
         members: {
           create: {
-            userId,
+            userId: userId,
             role: Role.OWNER,
           },
         },
@@ -38,10 +47,7 @@ export class BoardsService {
       },
       include: {
         members: true,
-        columns: {
-          include: { cards: true },
-          orderBy: { position: 'asc' },
-        },
+        columns: true,
       },
     });
   }
@@ -97,8 +103,8 @@ export class BoardsService {
       throw new NotFoundException('Board not found');
     }
 
-    const membership = board.members.find((m) => m.userId === userId);
-    if (!membership) {
+    const isMember = board.members.some((m) => m.userId === userId);
+    if (!isMember) {
       throw new ForbiddenException('You are not a member of this board');
     }
 
@@ -106,8 +112,7 @@ export class BoardsService {
   }
 
   async update(boardId: string, userId: string, dto: UpdateBoardDto) {
-    await this.checkPermission(boardId, userId, [Role.OWNER]);
-
+    await this.ensureOwner(boardId, userId);
     return this.prisma.board.update({
       where: { id: boardId },
       data: dto,
@@ -115,18 +120,16 @@ export class BoardsService {
   }
 
   async remove(boardId: string, userId: string) {
-    await this.checkPermission(boardId, userId, [Role.OWNER]);
-
+    await this.ensureOwner(boardId, userId);
     return this.prisma.board.delete({
       where: { id: boardId },
     });
   }
 
-  // ==================== MEMBERSHIP / ROLES ====================
+  // ========== Membership ==========
 
   async inviteMember(boardId: string, userId: string, dto: InviteMemberDto) {
-    // Only Owner can invite
-    await this.checkPermission(boardId, userId, [Role.OWNER]);
+    await this.ensureOwner(boardId, userId);
 
     const userToInvite = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -136,18 +139,14 @@ export class BoardsService {
       throw new NotFoundException('User with this email does not exist');
     }
 
-    // Check if already a member
     const existing = await this.prisma.boardMember.findUnique({
       where: {
-        boardId_userId: {
-          boardId,
-          userId: userToInvite.id,
-        },
+        boardId_userId: { boardId, userId: userToInvite.id },
       },
     });
 
     if (existing) {
-      throw new ForbiddenException('User is already a member of this board');
+      throw new ForbiddenException('User is already a member');
     }
 
     return this.prisma.boardMember.create({
@@ -157,9 +156,18 @@ export class BoardsService {
         role: dto.role,
       },
       include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
+  async getMembers(boardId: string, userId: string) {
+    await this.ensureMember(boardId, userId);
+
+    return this.prisma.boardMember.findMany({
+      where: { boardId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
       },
     });
   }
@@ -170,95 +178,46 @@ export class BoardsService {
     userId: string,
     dto: UpdateMemberRoleDto,
   ) {
-    // Only Owner can change roles
-    await this.checkPermission(boardId, userId, [Role.OWNER]);
-
-    const member = await this.prisma.boardMember.findFirst({
-      where: { id: memberId, boardId },
-    });
-
-    if (!member) {
-      throw new NotFoundException('Member not found');
-    }
-
-    // Prevent changing own role if you are the only owner
-    if (member.userId === userId && dto.role !== Role.OWNER) {
-      throw new ForbiddenException('You cannot remove your own Owner role');
-    }
+    await this.ensureOwner(boardId, userId);
 
     return this.prisma.boardMember.update({
       where: { id: memberId },
       data: { role: dto.role },
       include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
+        user: { select: { id: true, name: true, email: true } },
       },
     });
   }
 
   async removeMember(boardId: string, memberId: string, userId: string) {
-    // Only Owner can remove members
-    await this.checkPermission(boardId, userId, [Role.OWNER]);
-
-    const member = await this.prisma.boardMember.findFirst({
-      where: { id: memberId, boardId },
-    });
-
-    if (!member) {
-      throw new NotFoundException('Member not found');
-    }
-
-    if (member.userId === userId) {
-      throw new ForbiddenException('You cannot remove yourself');
-    }
+    await this.ensureOwner(boardId, userId);
 
     return this.prisma.boardMember.delete({
       where: { id: memberId },
     });
   }
 
-  async getMembers(boardId: string, userId: string) {
-    // Any member can view the member list
-    await this.checkPermission(boardId, userId, [
-      Role.OWNER,
-      Role.MEMBER,
-      Role.VIEWER,
-    ]);
+  // ========== Helpers ==========
 
-    return this.prisma.boardMember.findMany({
-      where: { boardId },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-      },
+  private async ensureOwner(boardId: string, userId: string) {
+    const membership = await this.prisma.boardMember.findUnique({
+      where: { boardId_userId: { boardId, userId } },
     });
+
+    if (!membership || membership.role !== Role.OWNER) {
+      throw new ForbiddenException(
+        'Only the board owner can perform this action',
+      );
+    }
   }
 
-  // ==================== HELPER ====================
-
-  private async checkPermission(
-    boardId: string,
-    userId: string,
-    allowedRoles: Role[],
-  ) {
+  private async ensureMember(boardId: string, userId: string) {
     const membership = await this.prisma.boardMember.findUnique({
-      where: {
-        boardId_userId: { boardId, userId },
-      },
+      where: { boardId_userId: { boardId, userId } },
     });
 
     if (!membership) {
       throw new ForbiddenException('You are not a member of this board');
     }
-
-    if (!allowedRoles.includes(membership.role)) {
-      throw new ForbiddenException(
-        'You do not have permission for this action',
-      );
-    }
-
-    return membership;
   }
 }

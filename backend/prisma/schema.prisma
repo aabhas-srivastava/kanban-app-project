@@ -18,6 +18,7 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
+  role         Role     @default(MEMBER)   // ← Add this line
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

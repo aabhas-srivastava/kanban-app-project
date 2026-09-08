@@ -17,15 +17,22 @@ export class CardsService {
   private async checkAccess(
     boardId: string,
     userId: string,
-    roles: Role[] = [Role.OWNER, Role.MEMBER],
+    allowedRoles: Role[] = [Role.OWNER, Role.MEMBER],
   ) {
     const membership = await this.prisma.boardMember.findUnique({
       where: { boardId_userId: { boardId, userId } },
     });
-    if (!membership) throw new ForbiddenException('Not a member of this board');
-    if (!roles.includes(membership.role)) {
-      throw new ForbiddenException('You do not have permission');
+
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this board');
     }
+
+    if (!allowedRoles.includes(membership.role)) {
+      throw new ForbiddenException(
+        'Viewers have read-only access to this board',
+      );
+    }
+
     return membership;
   }
 
@@ -167,5 +174,95 @@ export class CardsService {
     });
 
     return this.prisma.card.delete({ where: { id: cardId } });
+  }
+
+  // ── Assignees ───────────────────────────────────────────────────────────────
+
+  async getAssignees(cardId: string, userId: string) {
+    const card = await this.prisma.card.findUnique({
+      where: { id: cardId },
+      include: { column: true },
+    });
+    if (!card) throw new NotFoundException('Card not found');
+
+    // Any board member can view assignees
+    const membership = await this.prisma.boardMember.findUnique({
+      where: { boardId_userId: { boardId: card.column.boardId, userId } },
+    });
+    if (!membership) throw new ForbiddenException('Not a member of this board');
+
+    return this.prisma.cardAssignee.findMany({
+      where: { cardId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+  }
+
+  async addAssignee(cardId: string, userId: string, assignUserId: string) {
+    const card = await this.prisma.card.findUnique({
+      where: { id: cardId },
+      include: { column: true },
+    });
+    if (!card) throw new NotFoundException('Card not found');
+
+    await this.checkAccess(card.column.boardId, userId);
+
+    // The person being assigned must also be a board member
+    const targetMembership = await this.prisma.boardMember.findUnique({
+      where: { boardId_userId: { boardId: card.column.boardId, userId: assignUserId } },
+    });
+    if (!targetMembership) {
+      throw new ForbiddenException('Assigned user is not a member of this board');
+    }
+
+    const existing = await this.prisma.cardAssignee.findUnique({
+      where: { cardId_userId: { cardId, userId: assignUserId } },
+    });
+    if (existing) throw new ForbiddenException('User is already assigned to this card');
+
+    const assignee = await this.prisma.cardAssignee.create({
+      data: { cardId, userId: assignUserId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        boardId: card.column.boardId,
+        cardId,
+        userId,
+        action: 'CARD_ASSIGNED',
+        meta: { assignedUserId: assignUserId },
+      },
+    });
+
+    return assignee;
+  }
+
+  async removeAssignee(cardId: string, userId: string, assignUserId: string) {
+    const card = await this.prisma.card.findUnique({
+      where: { id: cardId },
+      include: { column: true },
+    });
+    if (!card) throw new NotFoundException('Card not found');
+
+    await this.checkAccess(card.column.boardId, userId);
+
+    const existing = await this.prisma.cardAssignee.findUnique({
+      where: { cardId_userId: { cardId, userId: assignUserId } },
+    });
+    if (!existing) throw new NotFoundException('Assignee not found');
+
+    await this.prisma.activity.create({
+      data: {
+        boardId: card.column.boardId,
+        cardId,
+        userId,
+        action: 'CARD_UNASSIGNED',
+        meta: { unassignedUserId: assignUserId },
+      },
+    });
+
+    return this.prisma.cardAssignee.delete({
+      where: { cardId_userId: { cardId, userId: assignUserId } },
+    });
   }
 }

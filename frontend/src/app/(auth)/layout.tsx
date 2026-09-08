@@ -1,4 +1,5 @@
 'use client';
+
 import { Box, Container, Paper, Typography } from '@mui/material';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -9,17 +10,32 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
+        bgcolor: '#fafafa',
       }}
     >
-      <Container maxWidth="sm">
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h4" align="center" sx={{ fontWeight: 700, mb: 1 }}>
-            Kanban Board
+      <Container maxWidth="xs">
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Typography
+            variant="h4"
+            color="#111"
+            sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}
+          >
+            Kanban
           </Typography>
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 4 }}>
-            Organize your work efficiently
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Simple. Clean. Focused.
           </Typography>
+        </Box>
+
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            borderRadius: 3,
+            border: '1px solid #eaeaea',
+            bgcolor: '#ffffff',
+          }}
+        >
           {children}
         </Paper>
       </Container>

@@ -2,19 +2,29 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Box, Typography, Button, Grid, Card, CardContent, CardActions, IconButton } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Grid,
+  Card,
+  CardContent,
+  IconButton,
+  CircularProgress,
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Board } from '@/types';
 import CreateBoardDialog from './CreateBoardDialog';
-import Loading from '@/components/common/Loading';
+import { getUser } from '@/lib/auth';
 
 export default function BoardsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [openCreate, setOpenCreate] = useState(false);
+  const currentUser = getUser();
 
   const { data: boards, isLoading } = useQuery({
     queryKey: ['boards'],
@@ -29,48 +39,122 @@ export default function BoardsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['boards'] }),
   });
 
-  if (isLoading) return <Loading />;
+  const isOwnerOfBoard = (board: Board) =>
+    board.members?.some(
+      (m) => m.userId === currentUser?.id && m.role === 'OWNER',
+    );
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 12 }}>
+        <CircularProgress size={28} sx={{ color: '#111' }} />
+      </Box>
+    );
+  }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>My Boards</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)}>
-          Create Board
+    <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 5,
+        }}
+      >
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          Boards
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenCreate(true)}
+        >
+          New Board
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
+      {(!boards || boards.length === 0) && (
+        <Box
+          sx={{
+            textAlign: 'center',
+            py: 10,
+            border: '1px dashed #ddd',
+            borderRadius: 3,
+          }}
+        >
+          <Typography color="text.secondary">
+            No boards yet. Create your first one.
+          </Typography>
+        </Box>
+      )}
+
+      <Grid container spacing={2.5}>
         {boards?.map((board) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={board.id}>
             <Card
-              sx={{ height: '100%', cursor: 'pointer', transition: '0.2s', '&:hover': { boxShadow: 6 } }}
+              sx={{
+                height: '100%',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: '#111',
+                  transform: 'translateY(-2px)',
+                },
+              }}
               onClick={() => router.push(`/boards/${board.id}`)}
             >
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>{board.title}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {board.title}
+                  </Typography>
+
+                  {isOwnerOfBoard(board) && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Delete this board?')) {
+                          deleteMutation.mutate(board.id);
+                        }
+                      }}
+                      sx={{ color: '#999', '&:hover': { color: '#111' } }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    mt: 1,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
                   {board.description || 'No description'}
                 </Typography>
               </CardContent>
-              <CardActions>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm('Delete this board?')) deleteMutation.mutate(board.id);
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </CardActions>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <CreateBoardDialog open={openCreate} onClose={() => setOpenCreate(false)} />
+      <CreateBoardDialog
+        open={openCreate}
+        onClose={() => setOpenCreate(false)}
+      />
     </Box>
   );
 }
